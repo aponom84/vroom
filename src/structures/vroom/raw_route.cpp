@@ -205,6 +205,9 @@ bool RawRoute::has_all_pickups_before_deliveries(const Input& input) const {
 bool RawRoute::would_violate_global_pd_constraint(const Input& input,
                                                Index insert_rank,
                                                Index job_rank) const {
+  // Defensive bounds check
+  assert(insert_rank <= route.size());
+
   // Perform a "virtual route" scan: iterate through the route as if the job was inserted
   // Map each position i in [0, route.size()] to either the new job (at insert_rank) or existing jobs
   bool delivery_seen = false;
@@ -216,10 +219,13 @@ bool RawRoute::would_violate_global_pd_constraint(const Input& input,
       current_job_idx = job_rank;
     } else if (i < insert_rank) {
       // Before insertion point, use original route
+      if (i >= route.size()) continue; // Defensive check
       current_job_idx = route[i];
     } else {
       // After insertion point, use original route shifted by 1
-      current_job_idx = route[i - 1];
+      Index orig_idx = i - 1;
+      if (orig_idx >= route.size()) continue; // Defensive check
+      current_job_idx = route[orig_idx];
     }
 
     const auto& current_job = input.jobs[current_job_idx];
@@ -257,8 +263,15 @@ bool RawRoute::would_violate_global_pd_constraint_range(
   // 1. Check the part of the route BEFORE the modification
   for (Index i = 0; i < first_rank && i < route.size(); ++i) {
     const auto& job = input.jobs[route[i]];
+    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
+                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
     bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
                        (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+
+    // Check if any pickup comes after a delivery has been encountered
+    if (is_pickup && delivery_seen) {
+      return true;
+    }
     if (is_delivery) {
       delivery_seen = true;
     }

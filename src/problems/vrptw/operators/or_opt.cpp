@@ -79,7 +79,7 @@ bool OrOpt::is_valid() {
       } else {
         // Check target route after adding both jobs
         std::vector<Index> temp_jobs{s_route[s_rank], s_route[s_rank + 1]};
-        if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 1, temp_jobs)) {
+        if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, temp_jobs)) {
           normal_direction_valid = false;
         }
       }
@@ -95,7 +95,7 @@ bool OrOpt::is_valid() {
     } else {
       // Check target route after adding both jobs in reverse order
       std::vector<Index> temp_jobs{s_route[s_rank + 1], s_route[s_rank]};  // reversed order
-      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 1, temp_jobs)) {
+      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, temp_jobs)) {
         reverse_direction_valid = false;
       }
     }

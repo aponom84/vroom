@@ -700,16 +700,6 @@ bool TWRoute::is_valid_addition_for_tw(const Input& input,
   assert(first_job <= last_job);
   assert(first_rank <= last_rank);
 
-  // Helper function to check if any element in Amount is positive
-  auto has_positive_value = [](const Amount& amount) {
-    for (std::size_t i = 0; i < amount.size(); ++i) {
-      if (amount[i] > 0) {
-        return true;
-      }
-    }
-    return false;
-  };
-
   const auto& v = input.vehicles[v_rank];
 
   // Override this value if vehicle does not need this check anyway to
