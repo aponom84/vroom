@@ -11,6 +11,16 @@ All rights reserved (see LICENSE).
 
 namespace vroom {
 
+// Helper function to check if any element in Amount is positive
+static bool has_positive_value(const Amount& amount) {
+  for (std::size_t i = 0; i < amount.size(); ++i) {
+    if (amount[i] > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 RawRoute::RawRoute(const Input& input, Index i, unsigned amount_size)
   : _zero(amount_size),
     _fwd_peaks(2, _zero),
@@ -158,138 +168,78 @@ bool RawRoute::has_pickup_up_to_rank(const Index rank) const {
   return 0 < _nb_pickups[rank];
 }
 
-// Helper function to check if any element in Amount is positive
-static bool has_positive_value(const Amount& amount) {
-  for (std::size_t i = 0; i < amount.size(); ++i) {
-    if (amount[i] > 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool RawRoute::has_all_pickups_before_deliveries(const Input& input) const {
   if (route.empty()) {
     return true;
   }
 
-  // Find the position of the last pickup job in the route
-  Index last_pickup_pos = static_cast<Index>(-1);  // Initialize to invalid position
-  bool found_any_pickup = false;
+  // Check if any pickup appears after a delivery
+  bool delivery_seen = false;
 
   for (Index i = 0; i < route.size(); ++i) {
     const auto& job = input.jobs[route[i]];
 
-    // Consider both dedicated pickup jobs and single jobs with pickup amounts
-    bool is_pickup_job = (job.type == JOB_TYPE::PICKUP) ||
-                         (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
+    // Check if this is a pickup job
+    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
+                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
 
-    if (is_pickup_job) {
-      last_pickup_pos = i;
-      found_any_pickup = true;
+    // Check if this is a delivery job
+    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
+                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+
+    // If we've seen a delivery and now encounter a pickup, it's invalid
+    if (is_pickup && delivery_seen) {
+      return false;
+    }
+
+    // If this is a delivery, mark that we've seen one
+    if (is_delivery) {
+      delivery_seen = true;
     }
   }
 
-  // If no pickup job was found, then condition is satisfied
-  if (!found_any_pickup) {
-    return true;
-  }
-
-  // Check if any delivery job appears after the last pickup position
-  for (Index i = last_pickup_pos + 1; i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-
-    // Consider both dedicated delivery jobs and single jobs with delivery amounts
-    bool is_delivery_job = (job.type == JOB_TYPE::DELIVERY) ||
-                           (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
-
-    if (is_delivery_job) {
-      return false;  // Found a delivery job after a pickup job
-    }
-  }
-
-  // All pickup jobs come before all delivery jobs
+  // No pickup appeared after a delivery
   return true;
 }
 
 bool RawRoute::would_violate_global_pd_constraint(const Input& input,
                                                Index insert_rank,
                                                Index job_rank) const {
-  const auto& new_job = input.jobs[job_rank];
-
-  // Determine if the new job is a pickup or delivery
-  bool is_new_pickup = (new_job.type == JOB_TYPE::PICKUP) ||
-                       (new_job.type == JOB_TYPE::SINGLE && has_positive_value(new_job.pickup));
-  bool is_new_delivery = (new_job.type == JOB_TYPE::DELIVERY) ||
-                         (new_job.type == JOB_TYPE::SINGLE && has_positive_value(new_job.delivery));
-
-  if (!is_new_pickup && !is_new_delivery) {
-    // Neither pickup nor delivery, no effect on constraint
-    return false;
-  }
-
-  // Use efficient sequence validation without copying
+  // Perform a "virtual route" scan: iterate through the route as if the job was inserted
+  // Map each position i in [0, route.size()] to either the new job (at insert_rank) or existing jobs
   bool delivery_seen = false;
-  for (size_t i = 0; i <= route.size(); ++i) {
-    Index current_idx;
+
+  for (Index i = 0; i <= route.size(); ++i) {
+    Index current_job_idx;
     if (i == insert_rank) {
-      // This is where the new job is inserted
-      current_idx = job_rank;
+      // This is where the new job would be inserted
+      current_job_idx = job_rank;
     } else if (i < insert_rank) {
       // Before insertion point, use original route
-      current_idx = route[i];
+      current_job_idx = route[i];
     } else {
       // After insertion point, use original route shifted by 1
-      if (i > 0) {  // Make sure we don't access route[-1]
-        current_idx = route[i - 1];
-      } else {
-        continue; // Skip if i is 0 and we're after insert_rank
-      }
+      current_job_idx = route[i - 1];
     }
 
-    // Make sure we don't go out of bounds
-    if (i == insert_rank) {
-      // We're checking the new job
-      const auto& current_job = input.jobs[current_idx];
-      bool is_current_pickup = (current_job.type == JOB_TYPE::PICKUP) ||
-                               (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.pickup));
-      bool is_current_delivery = (current_job.type == JOB_TYPE::DELIVERY) ||
-                                 (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.delivery));
+    const auto& current_job = input.jobs[current_job_idx];
 
-      if (is_current_pickup && delivery_seen) {
-        return true; // Found pickup after delivery
-      }
-      if (is_current_delivery) {
-        delivery_seen = true;
-      }
-    } else if (i < insert_rank && i < route.size()) {
-      // Before insertion point
-      const auto& current_job = input.jobs[route[i]];
-      bool is_current_pickup = (current_job.type == JOB_TYPE::PICKUP) ||
-                               (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.pickup));
-      bool is_current_delivery = (current_job.type == JOB_TYPE::DELIVERY) ||
-                                 (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.delivery));
+    // Check if this job is a pickup
+    bool is_pickup = (current_job.type == JOB_TYPE::PICKUP) ||
+                     (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.pickup));
 
-      if (is_current_pickup && delivery_seen) {
-        return true; // Found pickup after delivery
-      }
-      if (is_current_delivery) {
-        delivery_seen = true;
-      }
-    } else if (i > insert_rank && (i-1) < route.size()) {
-      // After insertion point (original route shifted by 1)
-      const auto& current_job = input.jobs[route[i-1]];
-      bool is_current_pickup = (current_job.type == JOB_TYPE::PICKUP) ||
-                               (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.pickup));
-      bool is_current_delivery = (current_job.type == JOB_TYPE::DELIVERY) ||
-                                 (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.delivery));
+    // Check if this job is a delivery
+    bool is_delivery = (current_job.type == JOB_TYPE::DELIVERY) ||
+                       (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.delivery));
 
-      if (is_current_pickup && delivery_seen) {
-        return true; // Found pickup after delivery
-      }
-      if (is_current_delivery) {
-        delivery_seen = true;
-      }
+    // If we've seen a delivery and now encounter a pickup, it's invalid
+    if (is_pickup && delivery_seen) {
+      return true;
+    }
+
+    // If this is a delivery, mark that we've seen one
+    if (is_delivery) {
+      delivery_seen = true;
     }
   }
 

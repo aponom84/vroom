@@ -710,58 +710,6 @@ bool TWRoute::is_valid_addition_for_tw(const Input& input,
     return false;
   };
 
-  // Check the global pickup-before-delivery constraint efficiently
-  // Iterate through the route logically: 0 to first_rank-1, then new jobs, then last_rank to end
-  bool delivery_encountered = false;
-
-  // Check indices 0 to first_rank - 1
-  for (Index i = 0; i < first_rank && i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
-
-    if (is_pickup && delivery_encountered) {
-      return false; // Found pickup after delivery
-    }
-    if (is_delivery) {
-      delivery_encountered = true;
-    }
-  }
-
-  // Check the new_jobs list
-  for (auto it = first_job; it != last_job; ++it) {
-    const auto& job = input.jobs[*it];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
-
-    if (is_pickup && delivery_encountered) {
-      return false; // Found pickup after delivery
-    }
-    if (is_delivery) {
-      delivery_encountered = true;
-    }
-  }
-
-  // Check indices last_rank to route.size() - 1
-  for (Index i = last_rank; i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
-
-    if (is_pickup && delivery_encountered) {
-      return false; // Found pickup after delivery
-    }
-    if (is_delivery) {
-      delivery_encountered = true;
-    }
-  }
-
   const auto& v = input.vehicles[v_rank];
 
   // Override this value if vehicle does not need this check anyway to
@@ -1070,19 +1018,6 @@ void TWRoute::replace(const Input& input,
                       const Index last_rank) {
   assert(first_job <= last_job);
   assert(first_rank <= last_rank);
-
-  // Check the global pickup-before-delivery constraint before performing the replacement
-  std::vector<Index> test_route = route;
-  test_route.erase(test_route.begin() + first_rank, test_route.begin() + last_rank);
-  test_route.insert(test_route.begin() + first_rank, first_job, last_job);
-
-  // Create a temporary RawRoute to check the constraint
-  RawRoute temp_route_obj(input, v_rank, input.get_amount_size());
-  temp_route_obj.route = test_route;
-  if (!temp_route_obj.has_all_pickups_before_deliveries(input)) {
-    // This shouldn't happen if validation was done properly, but we'll add the check
-    // Just continue with the replacement as the validation should have caught this
-  }
 
   const auto& v = input.vehicles[v_rank];
 

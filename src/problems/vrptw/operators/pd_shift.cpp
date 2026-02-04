@@ -85,7 +85,7 @@ bool PDShift::is_valid() {
   }
   target_jobs_to_add.push_back(s_route[_s_d_rank]);
 
-  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, _best_t_p_rank, _best_t_d_rank + 1, target_jobs_to_add)) {
+  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, _best_t_p_rank, _best_t_d_rank, target_jobs_to_add)) {
     return false;
   }
 

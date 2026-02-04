@@ -86,14 +86,17 @@ public:
   bool has_all_pickups_before_deliveries(const Input& input) const;
 
   // Efficient validation for insertion without creating temporary route
+  // Checks if inserting job at insert_rank would violate the global PD constraint
   bool would_violate_global_pd_constraint(const Input& input,
                                         Index insert_rank,
                                         Index job_rank) const;
 
   // Efficient validation for range replacement without creating temporary route
+  // Checks if replacing route[first_rank:last_rank) with new_jobs would violate the global PD constraint
+  // Note: last_rank is EXCLUSIVE (following STL convention)
   bool would_violate_global_pd_constraint_range(const Input& input,
                                               Index first_rank,
-                                              Index last_rank,
+                                              Index last_rank,  // EXCLUSIVE end of range to be replaced
                                               const std::vector<Index>& new_jobs) const;
 
   const Amount& fwd_peak(Index rank) const {
