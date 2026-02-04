@@ -53,6 +53,12 @@ compute_best_insertion_single(const Input& input,
                                                current_job.delivery,
                                                rank) &&
           route.is_valid_addition_for_tw(input, j, rank)) {
+
+        // Check the global pickup-before-delivery constraint efficiently
+        if (route.would_violate_global_pd_constraint(input, rank, j)) {
+          continue; // Skip this insertion as it violates the constraint
+        }
+
         result.eval = current_eval;
         result.delivery = current_job.delivery;
         result.single_rank = rank;
@@ -202,6 +208,13 @@ RouteInsertion compute_best_insertion_pd(const Input& input,
                                                      modified_with_pd.end(),
                                                      pickup_r,
                                                      delivery_r);
+
+        // Check the global pickup-before-delivery constraint efficiently
+        if (is_valid) {
+          if (route.would_violate_global_pd_constraint_range(input, pickup_r, delivery_r + 1, modified_with_pd)) {
+            is_valid = false; // Skip this insertion as it violates the constraint
+          }
+        }
 
         modified_with_pd.pop_back();
 

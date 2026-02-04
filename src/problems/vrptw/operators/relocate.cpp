@@ -32,11 +32,27 @@ Relocate::Relocate(const Input& input,
 }
 
 bool Relocate::is_valid() {
-  return cvrp::Relocate::is_valid() &&
-         _tw_t_route.is_valid_addition_for_tw(_input,
-                                              s_route[s_rank],
-                                              t_rank) &&
-         _tw_s_route.is_valid_removal(_input, s_rank, 1);
+  // First check the original conditions
+  if (!cvrp::Relocate::is_valid() ||
+      !_tw_t_route.is_valid_addition_for_tw(_input,
+                                           s_route[s_rank],
+                                           t_rank) ||
+      !_tw_s_route.is_valid_removal(_input, s_rank, 1)) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for both routes after the move efficiently
+  // Check source route after removal
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 1, std::vector<Index>{})) {
+    return false;
+  }
+
+  // Check target route after addition
+  if (_tw_t_route.would_violate_global_pd_constraint(_input, t_rank, s_route[s_rank])) {
+    return false;
+  }
+
+  return true;
 }
 
 void Relocate::apply() {

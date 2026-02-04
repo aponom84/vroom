@@ -27,13 +27,23 @@ IntraRelocate::IntraRelocate(const Input& input,
 }
 
 bool IntraRelocate::is_valid() {
-  return cvrp::IntraRelocate::is_valid() &&
-         _tw_s_route.is_valid_addition_for_tw(_input,
-                                              _delivery,
-                                              _moved_jobs.begin(),
-                                              _moved_jobs.end(),
-                                              _first_rank,
-                                              _last_rank);
+  // First check the original conditions
+  if (!cvrp::IntraRelocate::is_valid() ||
+      !_tw_s_route.is_valid_addition_for_tw(_input,
+                                           _delivery,
+                                           _moved_jobs.begin(),
+                                           _moved_jobs.end(),
+                                           _first_rank,
+                                           _last_rank)) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for the route after the move efficiently
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, _first_rank, _last_rank, _moved_jobs)) {
+    return false;
+  }
+
+  return true;
 }
 
 void IntraRelocate::apply() {

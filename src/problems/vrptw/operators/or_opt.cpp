@@ -58,7 +58,52 @@ bool OrOpt::is_valid() {
     valid = is_normal_valid || is_reverse_valid;
   }
 
-  return valid;
+  if (!valid) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for both routes after the move
+  // We need to check both directions (normal and reverse) since the operator
+  // will choose the one that gives the best gain
+
+  // Check for normal direction
+  bool normal_direction_valid = true;
+  if (is_normal_valid) {
+    // Check source route after removal
+    if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, std::vector<Index>{})) {
+      normal_direction_valid = false;
+    } else {
+      // Check target route after addition - first job
+      if (_tw_t_route.would_violate_global_pd_constraint(_input, t_rank, s_route[s_rank])) {
+        normal_direction_valid = false;
+      } else {
+        // Check target route after adding both jobs
+        std::vector<Index> temp_jobs{s_route[s_rank], s_route[s_rank + 1]};
+        if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 1, temp_jobs)) {
+          normal_direction_valid = false;
+        }
+      }
+    }
+  }
+
+  // Check for reverse direction
+  bool reverse_direction_valid = true;
+  if (is_reverse_valid) {
+    // Check source route after removal (same as normal)
+    if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, std::vector<Index>{})) {
+      reverse_direction_valid = false;
+    } else {
+      // Check target route after adding both jobs in reverse order
+      std::vector<Index> temp_jobs{s_route[s_rank + 1], s_route[s_rank]};  // reversed order
+      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 1, temp_jobs)) {
+        reverse_direction_valid = false;
+      }
+    }
+  }
+
+  // The operator is valid if at least one direction preserves the constraint
+  return (is_normal_valid && normal_direction_valid) ||
+         (is_reverse_valid && reverse_direction_valid);
 }
 
 void OrOpt::apply() {

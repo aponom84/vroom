@@ -65,6 +65,33 @@ void PDShift::compute_gain() {
   gain_computed = true;
 }
 
+bool PDShift::is_valid() {
+  // First check the original conditions
+  if (!cvrp::PDShift::is_valid()) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for both routes after the move efficiently
+  // Check source route after removal
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, _s_p_rank, _s_d_rank + 1, std::vector<Index>{})) {
+    return false;
+  }
+
+  // Check target route after addition
+  std::vector<Index> target_jobs_to_add;
+  target_jobs_to_add.push_back(s_route[_s_p_rank]);
+  for (Index i = _best_t_p_rank; i < _best_t_d_rank; ++i) {
+    target_jobs_to_add.push_back(t_route[i]);
+  }
+  target_jobs_to_add.push_back(s_route[_s_d_rank]);
+
+  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, _best_t_p_rank, _best_t_d_rank + 1, target_jobs_to_add)) {
+    return false;
+  }
+
+  return true;
+}
+
 void PDShift::apply() {
   std::vector<Index> target_with_pd;
   target_with_pd.reserve(_best_t_d_rank - _best_t_p_rank + 2);

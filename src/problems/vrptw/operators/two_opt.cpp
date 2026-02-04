@@ -32,19 +32,38 @@ TwoOpt::TwoOpt(const Input& input,
 }
 
 bool TwoOpt::is_valid() {
-  return cvrp::TwoOpt::is_valid() &&
-         _tw_t_route.is_valid_addition_for_tw(_input,
-                                              _s_delivery,
-                                              s_route.begin() + s_rank + 1,
-                                              s_route.end(),
-                                              t_rank + 1,
-                                              t_route.size()) &&
-         _tw_s_route.is_valid_addition_for_tw(_input,
-                                              _t_delivery,
-                                              t_route.begin() + t_rank + 1,
-                                              t_route.end(),
-                                              s_rank + 1,
-                                              s_route.size());
+  // First check the original conditions
+  if (!cvrp::TwoOpt::is_valid() ||
+      !_tw_t_route.is_valid_addition_for_tw(_input,
+                                           _s_delivery,
+                                           s_route.begin() + s_rank + 1,
+                                           s_route.end(),
+                                           t_rank + 1,
+                                           t_route.size()) ||
+      !_tw_s_route.is_valid_addition_for_tw(_input,
+                                           _t_delivery,
+                                           t_route.begin() + t_rank + 1,
+                                           t_route.end(),
+                                           s_rank + 1,
+                                           s_route.size())) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for both routes after the move efficiently
+  // The TwoOpt swaps segments after s_rank+1 and t_rank+1, so we need to validate the resulting routes
+  // Check source route after swap: [original_0...original_{s_rank}, target_segment_after_t_rank...]
+  std::vector<Index> segment_from_target(t_route.begin() + t_rank + 1, t_route.end());
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank + 1, _tw_s_route.route.size(), segment_from_target)) {
+    return false;
+  }
+
+  // Check target route after swap: [original_0...original_{t_rank}, source_segment_after_s_rank...]
+  std::vector<Index> segment_from_source(s_route.begin() + s_rank + 1, s_route.end());
+  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank + 1, _tw_t_route.route.size(), segment_from_source)) {
+    return false;
+  }
+
+  return true;
 }
 
 void TwoOpt::apply() {

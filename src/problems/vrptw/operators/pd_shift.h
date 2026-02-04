@@ -33,7 +33,7 @@ public:
           Index t_vehicle,
           const Eval& gain_threshold);
 
-  void log_route(const std::vector<Index>& route) const;
+  bool is_valid() override;
 
   void apply() override;
 };

@@ -82,6 +82,20 @@ public:
 
   bool has_pickup_up_to_rank(Index rank) const;
 
+  // Check if all pickups come before all deliveries in the route
+  bool has_all_pickups_before_deliveries(const Input& input) const;
+
+  // Efficient validation for insertion without creating temporary route
+  bool would_violate_global_pd_constraint(const Input& input,
+                                        Index insert_rank,
+                                        Index job_rank) const;
+
+  // Efficient validation for range replacement without creating temporary route
+  bool would_violate_global_pd_constraint_range(const Input& input,
+                                              Index first_rank,
+                                              Index last_rank,
+                                              const std::vector<Index>& new_jobs) const;
+
   const Amount& fwd_peak(Index rank) const {
     return _fwd_peaks[rank];
   }

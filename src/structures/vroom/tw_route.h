@@ -179,6 +179,11 @@ public:
             rank);
   };
 
+  // Check if all pickups come before all deliveries in the route
+  bool has_all_pickups_before_deliveries(const Input& input) const {
+    return RawRoute::has_all_pickups_before_deliveries(input);
+  }
+
   // Check validity for removing a set of jobs from current route at
   // rank. Required because removing a job can actually lead to an
   // invalid solution (see #172).
