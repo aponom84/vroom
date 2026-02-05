@@ -246,9 +246,9 @@ bool RawRoute::would_violate_global_pd_constraint_range(
     const std::vector<Index>& new_jobs) const {
 
   // Defensive bounds checks: we expect [first_rank, last_rank) to be replaced.
-  assert(first_rank <= last_rank);
   assert(first_rank <= route.size());
   assert(last_rank <= route.size());
+  assert(first_rank <= last_rank);
 
   bool delivery_seen = false;
 

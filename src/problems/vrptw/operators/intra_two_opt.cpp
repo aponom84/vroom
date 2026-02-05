@@ -65,7 +65,7 @@ bool IntraTwoOpt::is_valid() {
     // Verify that the PD constraint check operates on the same range as the TW check
     // (this operator requires at least 2 jobs inside the reversed segment)
     // (this operator requires t_rank >= s_rank + 2; reversed segment length >= 3)
-    assert(s_rank < t_rank - 1);  // Range [s_rank, t_rank+1) is valid
+    assert(t_rank >= s_rank + 2); // Range [s_rank, t_rank+1) is valid
     if (_tw_s_route.would_violate_global_pd_constraint_range(_input,
                                                             s_rank,
                                                             t_rank + 1,
