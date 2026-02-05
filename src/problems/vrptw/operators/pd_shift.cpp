@@ -7,6 +7,10 @@ All rights reserved (see LICENSE).
 
 */
 
+#include <algorithm>
+#include <iterator>
+#include <vector>
+
 #include "problems/vrptw/operators/pd_shift.h"
 #include "algorithms/local_search/insertion_search.h"
 
@@ -70,6 +74,13 @@ bool PDShift::is_valid() {
   if (!cvrp::PDShift::is_valid()) {
     return false;
   }
+
+  // PDShift::is_valid relies on compute_gain() having run and found a feasible insertion.
+  // Use a runtime guard (asserts may be compiled out).
+  if (!gain_computed || !_valid) {
+    return false;
+  }
+  assert(gain_computed);
 
   // Check the global pickup-before-delivery constraint for both routes after the move efficiently
   // Check source route after removal - depends on whether pickup and delivery are adjacent

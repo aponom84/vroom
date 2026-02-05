@@ -73,7 +73,7 @@ bool OrOpt::is_valid() {
     if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, std::vector<Index>{})) {
       normal_direction_valid = false;
     } else {
-      // Check target route after adding both jobs at once (more efficient than checking separately)
+      // Check target route after inserting both jobs at t_rank (replace empty interval [t_rank, t_rank))
       std::vector<Index> temp_jobs{s_route[s_rank], s_route[s_rank + 1]};
       if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank, temp_jobs)) {
         normal_direction_valid = false;

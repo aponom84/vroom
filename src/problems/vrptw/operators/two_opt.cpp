@@ -6,6 +6,7 @@ Copyright (c) 2015-2025, Julien Coupey.
 All rights reserved (see LICENSE).
 
 */
+#include <vector>
 
 #include "problems/vrptw/operators/two_opt.h"
 
@@ -53,13 +54,13 @@ bool TwoOpt::is_valid() {
   // The TwoOpt swaps segments after s_rank+1 and t_rank+1, so we need to validate the resulting routes
   // Check source route after swap: [original_0...original_{s_rank}, target_segment_after_t_rank...]
   std::vector<Index> segment_from_target(t_route.begin() + t_rank + 1, t_route.end());
-  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank + 1, _tw_s_route.route.size(), segment_from_target)) {
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank + 1, s_route.size(), segment_from_target)) {
     return false;
   }
 
   // Check target route after swap: [original_0...original_{t_rank}, source_segment_after_s_rank...]
   std::vector<Index> segment_from_source(s_route.begin() + s_rank + 1, s_route.end());
-  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank + 1, _tw_t_route.route.size(), segment_from_source)) {
+  if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank + 1, t_route.size(), segment_from_source)) {
     return false;
   }
 
