@@ -7,9 +7,10 @@ All rights reserved (see LICENSE).
 
 */
 
-#include "structures/vroom/raw_route.h"
 #include <cassert>
 #include <utility>
+
+#include "structures/vroom/raw_route.h"
 
 namespace vroom {
 
