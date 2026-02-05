@@ -7,6 +7,9 @@ All rights reserved (see LICENSE).
 
 */
 
+#include <algorithm>
+#include <vector>
+
 #include "problems/vrptw/operators/intra_two_opt.h"
 
 namespace vroom::vrptw {
@@ -46,9 +49,11 @@ bool IntraTwoOpt::is_valid() {
   }
 
   // Check the global pickup-before-delivery constraint for the route after the move efficiently
-  // IntraTwoOpt reverses the segment [s_rank+1, t_rank], so we need to check the constraint after reversal
-  std::vector<Index> reversed_segment(s_route.rbegin() + (s_route.size() - t_rank - 1),
-                                      s_route.rbegin() + (s_route.size() - s_rank));
+  // NOTE: this operator reverses the segment [s_rank, t_rank] (inclusive),
+  // i.e. it replaces [s_rank, t_rank+1) with its reversed order.
+  std::vector<Index> reversed_segment(s_route.begin() + s_rank,
+                                      s_route.begin() + (t_rank + 1));
+  std::reverse(reversed_segment.begin(), reversed_segment.end());
 
   if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, t_rank + 1, reversed_segment)) {
     return false;
@@ -58,8 +63,11 @@ bool IntraTwoOpt::is_valid() {
 }
 
 void IntraTwoOpt::apply() {
-  std::vector<Index> reversed(s_route.rbegin() + (s_route.size() - t_rank - 1),
-                              s_route.rbegin() + (s_route.size() - s_rank));
+  // Must match the exact effect of the CVRP operator:
+  // reverse(s_route.begin()+s_rank, s_route.begin()+t_rank+1)
+  std::vector<Index> reversed(s_route.begin() + s_rank,
+                              s_route.begin() + (t_rank + 1));
+  std::reverse(reversed.begin(), reversed.end());
 
   _tw_s_route.replace(_input,
                       delivery,
