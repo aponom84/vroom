@@ -208,24 +208,23 @@ bool RawRoute::would_violate_global_pd_constraint(const Input& input,
   // Defensive bounds check
   assert(insert_rank <= route.size());
 
+  const Index n = (Index)route.size();
+
   // Perform a "virtual route" scan: iterate through the route as if the job was inserted
-  // Map each position i in [0, route.size()] to either the new job (at insert_rank) or existing jobs
+  // Map each position i in [0, n] to either the new job (at insert_rank) or existing jobs
   bool delivery_seen = false;
 
-  for (Index i = 0; i <= route.size(); ++i) {
+  for (Index i = 0; i <= n; ++i) {
     Index current_job_idx;
     if (i == insert_rank) {
       // This is where the new job would be inserted
       current_job_idx = job_rank;
     } else if (i < insert_rank) {
       // Before insertion point, use original route
-      if (i >= route.size()) continue; // Defensive check
       current_job_idx = route[i];
     } else {
       // After insertion point, use original route shifted by 1
-      Index orig_idx = i - 1;
-      if (orig_idx >= route.size()) continue; // Defensive check
-      current_job_idx = route[orig_idx];
+      current_job_idx = route[i - 1];
     }
 
     const auto& current_job = input.jobs[current_job_idx];

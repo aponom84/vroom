@@ -92,7 +92,57 @@ bool CrossExchange::is_valid() {
     valid = t_is_normal_valid || t_is_reverse_valid;
   }
 
-  return valid;
+  if (!valid) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for both routes after the move
+  // We need to check both directions for both routes since the operator will choose the best combination
+
+  // Check for source route with normal target insertion
+  bool pd_s_normal_valid = true;
+  if (s_is_normal_valid) {
+    std::vector<Index> target_segment{t_route[t_rank], t_route[t_rank + 1]};
+    if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, target_segment)) {
+      pd_s_normal_valid = false;
+    }
+  }
+
+  // Check for source route with reversed target insertion
+  bool pd_s_reverse_valid = true;
+  if (s_is_reverse_valid) {
+    std::vector<Index> target_segment{t_route[t_rank + 1], t_route[t_rank]};  // reversed
+    if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, target_segment)) {
+      pd_s_reverse_valid = false;
+    }
+  }
+
+  // Check for target route with normal source insertion
+  bool pd_t_normal_valid = true;
+  if (t_is_normal_valid) {
+    std::vector<Index> source_segment{s_route[s_rank], s_route[s_rank + 1]};
+    if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, source_segment)) {
+      pd_t_normal_valid = false;
+    }
+  }
+
+  // Check for target route with reversed source insertion
+  bool pd_t_reverse_valid = true;
+  if (t_is_reverse_valid) {
+    std::vector<Index> source_segment{s_route[s_rank + 1], s_route[s_rank]};  // reversed
+    if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, source_segment)) {
+      pd_t_reverse_valid = false;
+    }
+  }
+
+  // The operator is valid if at least one combination of (s_direction, t_direction) is valid
+  // considering both TW and PD constraints
+  bool nn_valid = s_is_normal_valid && t_is_normal_valid && pd_s_normal_valid && pd_t_normal_valid;
+  bool nr_valid = s_is_normal_valid && t_is_reverse_valid && pd_s_normal_valid && pd_t_reverse_valid;
+  bool rn_valid = s_is_reverse_valid && t_is_normal_valid && pd_s_reverse_valid && pd_t_normal_valid;
+  bool rr_valid = s_is_reverse_valid && t_is_reverse_valid && pd_s_reverse_valid && pd_t_reverse_valid;
+
+  return nn_valid || nr_valid || rn_valid || rr_valid;
 }
 
 void CrossExchange::apply() {

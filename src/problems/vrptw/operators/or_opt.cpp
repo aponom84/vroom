@@ -73,15 +73,10 @@ bool OrOpt::is_valid() {
     if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, s_rank + 2, std::vector<Index>{})) {
       normal_direction_valid = false;
     } else {
-      // Check target route after addition - first job
-      if (_tw_t_route.would_violate_global_pd_constraint(_input, t_rank, s_route[s_rank])) {
+      // Check target route after adding both jobs at once (more efficient than checking separately)
+      std::vector<Index> temp_jobs{s_route[s_rank], s_route[s_rank + 1]};
+      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank, temp_jobs)) {
         normal_direction_valid = false;
-      } else {
-        // Check target route after adding both jobs
-        std::vector<Index> temp_jobs{s_route[s_rank], s_route[s_rank + 1]};
-        if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, temp_jobs)) {
-          normal_direction_valid = false;
-        }
       }
     }
   }
@@ -95,7 +90,7 @@ bool OrOpt::is_valid() {
     } else {
       // Check target route after adding both jobs in reverse order
       std::vector<Index> temp_jobs{s_route[s_rank + 1], s_route[s_rank]};  // reversed order
-      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank + 2, temp_jobs)) {
+      if (_tw_t_route.would_violate_global_pd_constraint_range(_input, t_rank, t_rank, temp_jobs)) {
         reverse_direction_valid = false;
       }
     }

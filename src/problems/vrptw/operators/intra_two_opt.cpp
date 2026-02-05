@@ -41,7 +41,20 @@ bool IntraTwoOpt::is_valid() {
                                                  t_rank + 1);
   }
 
-  return valid;
+  if (!valid) {
+    return false;
+  }
+
+  // Check the global pickup-before-delivery constraint for the route after the move efficiently
+  // IntraTwoOpt reverses the segment [s_rank+1, t_rank], so we need to check the constraint after reversal
+  std::vector<Index> reversed_segment(s_route.rbegin() + (s_route.size() - t_rank - 1),
+                                      s_route.rbegin() + (s_route.size() - s_rank));
+
+  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, t_rank + 1, reversed_segment)) {
+    return false;
+  }
+
+  return true;
 }
 
 void IntraTwoOpt::apply() {
