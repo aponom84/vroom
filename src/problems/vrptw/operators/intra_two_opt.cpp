@@ -14,6 +14,16 @@ All rights reserved (see LICENSE).
 
 namespace vroom::vrptw {
 
+namespace {
+inline std::vector<Index> make_reversed_segment(const std::vector<Index>& route,
+                                               Index s_rank,
+                                               Index t_rank) {
+  std::vector<Index> seg(route.begin() + s_rank, route.begin() + (t_rank + 1));
+  std::reverse(seg.begin(), seg.end());
+  return seg;
+}
+} // namespace
+
 IntraTwoOpt::IntraTwoOpt(const Input& input,
                          const utils::SolutionState& sol_state,
                          TWRoute& tw_s_route,
@@ -33,41 +43,44 @@ bool IntraTwoOpt::is_valid() {
   bool valid = cvrp::IntraTwoOpt::is_valid();
 
   if (valid) {
-    auto rev_t = s_route.rbegin() + (s_route.size() - t_rank - 1);
-    auto rev_s_next = s_route.rbegin() + (s_route.size() - s_rank);
+    // Defensive assertions to ensure valid range
+    assert(s_rank <= t_rank);
+    assert(t_rank < s_route.size());
+
+    // Build the exact sequence that will replace [s_rank, t_rank+1) after reversal.
+    std::vector<Index> reversed_segment = make_reversed_segment(s_route, s_rank, t_rank);
 
     valid = _tw_s_route.is_valid_addition_for_tw(_input,
                                                  delivery,
-                                                 rev_t,
-                                                 rev_s_next,
+                                                 reversed_segment.begin(),
+                                                 reversed_segment.end(),
                                                  s_rank,
                                                  t_rank + 1);
+
+    if (!valid) {
+      return false;
+    }
+
+    // PD check using the same reversed_segment (no extra allocation).
+    // Verify that the PD constraint check operates on the same range as the TW check
+    assert(s_rank <= t_rank + 1);  // Range [s_rank, t_rank+1) is valid
+    if (_tw_s_route.would_violate_global_pd_constraint_range(_input,
+                                                            s_rank,
+                                                            t_rank + 1,
+                                                            reversed_segment)) {
+      return false;
+    }
+
+    return true;
   }
 
-  if (!valid) {
-    return false;
-  }
-
-  // Check the global pickup-before-delivery constraint for the route after the move efficiently
-  // NOTE: this operator reverses the segment [s_rank, t_rank] (inclusive),
-  // i.e. it replaces [s_rank, t_rank+1) with its reversed order.
-  std::vector<Index> reversed_segment(s_route.begin() + s_rank,
-                                      s_route.begin() + (t_rank + 1));
-  std::reverse(reversed_segment.begin(), reversed_segment.end());
-
-  if (_tw_s_route.would_violate_global_pd_constraint_range(_input, s_rank, t_rank + 1, reversed_segment)) {
-    return false;
-  }
-
-  return true;
+  return false;
 }
 
 void IntraTwoOpt::apply() {
   // Must match the exact effect of the CVRP operator:
   // reverse(s_route.begin()+s_rank, s_route.begin()+t_rank+1)
-  std::vector<Index> reversed(s_route.begin() + s_rank,
-                              s_route.begin() + (t_rank + 1));
-  std::reverse(reversed.begin(), reversed.end());
+  std::vector<Index> reversed = make_reversed_segment(s_route, s_rank, t_rank);
 
   _tw_s_route.replace(_input,
                       delivery,

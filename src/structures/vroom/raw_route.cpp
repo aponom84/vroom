@@ -21,6 +21,17 @@ static bool has_positive_value(const Amount& amount) {
   return false;
 }
 
+// Helper function to classify job as pickup/delivery consistently across all methods
+static inline std::pair<bool, bool> pd_classify(const Input& input, Index job_idx) {
+  const auto& job = input.jobs[job_idx];
+
+  // Policy A (recommended): only shipment jobs participate in this constraint.
+  const bool is_pickup = (job.type == JOB_TYPE::PICKUP);
+  const bool is_delivery = (job.type == JOB_TYPE::DELIVERY);
+
+  return {is_pickup, is_delivery};
+}
+
 RawRoute::RawRoute(const Input& input, Index i, unsigned amount_size)
   : _zero(amount_size),
     _fwd_peaks(2, _zero),
@@ -177,15 +188,7 @@ bool RawRoute::has_all_pickups_before_deliveries(const Input& input) const {
   bool delivery_seen = false;
 
   for (Index i = 0; i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-
-    // Check if this is a pickup job
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-
-    // Check if this is a delivery job
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+    const auto [is_pickup, is_delivery] = pd_classify(input, route[i]);
 
     // If we've seen a delivery and now encounter a pickup, it's invalid
     if (is_pickup && delivery_seen) {
@@ -227,15 +230,7 @@ bool RawRoute::would_violate_global_pd_constraint(const Input& input,
       current_job_idx = route[i - 1];
     }
 
-    const auto& current_job = input.jobs[current_job_idx];
-
-    // Check if this job is a pickup
-    bool is_pickup = (current_job.type == JOB_TYPE::PICKUP) ||
-                     (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.pickup));
-
-    // Check if this job is a delivery
-    bool is_delivery = (current_job.type == JOB_TYPE::DELIVERY) ||
-                       (current_job.type == JOB_TYPE::SINGLE && has_positive_value(current_job.delivery));
+    const auto [is_pickup, is_delivery] = pd_classify(input, current_job_idx);
 
     // If we've seen a delivery and now encounter a pickup, it's invalid
     if (is_pickup && delivery_seen) {
@@ -257,15 +252,15 @@ bool RawRoute::would_violate_global_pd_constraint_range(
     Index last_rank,
     const std::vector<Index>& new_jobs) const {
 
+  // Defensive bounds checks: we expect [first_rank, last_rank) to be replaced.
+  assert(first_rank <= last_rank);
+  assert(last_rank <= route.size());
+
   bool delivery_seen = false;
 
   // 1. Check the part of the route BEFORE the modification
   for (Index i = 0; i < first_rank && i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+    const auto [is_pickup, is_delivery] = pd_classify(input, route[i]);
 
     // Check if any pickup comes after a delivery has been encountered
     if (is_pickup && delivery_seen) {
@@ -278,11 +273,7 @@ bool RawRoute::would_violate_global_pd_constraint_range(
 
   // 2. Check the NEW jobs being inserted
   for (Index job_idx : new_jobs) {
-    const auto& job = input.jobs[job_idx];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+    const auto [is_pickup, is_delivery] = pd_classify(input, job_idx);
 
     if (is_pickup && delivery_seen) {
       return true;
@@ -294,11 +285,7 @@ bool RawRoute::would_violate_global_pd_constraint_range(
 
   // 3. Check the part of the route AFTER the modification
   for (Index i = last_rank; i < route.size(); ++i) {
-    const auto& job = input.jobs[route[i]];
-    bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
-                     (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
-    bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
-                       (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
+    const auto [is_pickup, is_delivery] = pd_classify(input, route[i]);
 
     if (is_pickup && delivery_seen) {
       return true;
