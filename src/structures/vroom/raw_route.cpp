@@ -8,18 +8,10 @@ All rights reserved (see LICENSE).
 */
 
 #include "structures/vroom/raw_route.h"
+#include <cassert>
+#include <utility>
 
 namespace vroom {
-
-// Helper function to check if any element in Amount is positive
-static bool has_positive_value(const Amount& amount) {
-  for (std::size_t i = 0; i < amount.size(); ++i) {
-    if (amount[i] > 0) {
-      return true;
-    }
-  }
-  return false;
-}
 
 // Helper function to classify job as pickup/delivery consistently across all methods
 static inline std::pair<bool, bool> pd_classify(const Input& input, Index job_idx) {
@@ -254,6 +246,7 @@ bool RawRoute::would_violate_global_pd_constraint_range(
 
   // Defensive bounds checks: we expect [first_rank, last_rank) to be replaced.
   assert(first_rank <= last_rank);
+  assert(first_rank <= route.size());
   assert(last_rank <= route.size());
 
   bool delivery_seen = false;

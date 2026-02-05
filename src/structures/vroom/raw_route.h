@@ -12,6 +12,7 @@ All rights reserved (see LICENSE).
 
 #include "structures/typedefs.h"
 #include "structures/vroom/input/input.h"
+#include <vector>
 
 namespace vroom {
 
