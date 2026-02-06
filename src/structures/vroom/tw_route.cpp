@@ -1016,6 +1016,45 @@ bool TWRoute::is_valid_addition_for_tw(const Input& input,
     }
   }
 
+  // --- Global PD constraint: forbid any pickup after any delivery in the resulting route.
+  // We reuse RawRoute checker; this makes the heuristic + LS fail-closed automatically.
+  {
+    std::vector<Index> inserted;
+    inserted.reserve(std::distance(first_job, last_job));
+    for (auto it = first_job; it != last_job; ++it) {
+      inserted.push_back(*it);
+    }
+
+    // NOTE: In TWRoute::is_valid_addition_for_tw, (first_rank,last_rank) can refer
+    // to positions in the *resulting* sequence (after insertion), not necessarily
+    // a valid [first_rank,last_rank) range in the current route.
+    //
+    // RawRoute::would_violate_global_pd_constraint_range expects a range within the
+    // CURRENT route (before modification). So we must map the call accordingly:
+    // - If last_rank exceeds current route size, treat it as a pure insertion and
+    //   check replacement of an empty interval [first_rank, first_rank).
+    Index pd_first = first_rank;
+    Index pd_last = last_rank;
+
+    if (pd_first > this->route.size()) {
+      // Impossible position in current route -> reject.
+      return false;
+    }
+
+    if (pd_last > this->route.size()) {
+      // Most common case: pure insertion described with post-insertion ranks.
+      pd_last = pd_first;
+    }
+
+    if (this->would_violate_global_pd_constraint_range(input,
+                                                       pd_first,
+                                                       pd_last,
+                                                       inserted)) {
+      return false;
+    }
+
+  }
+
   return current.earliest + next.travel <= next.latest;
 }
 

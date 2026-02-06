@@ -259,9 +259,19 @@ bool RawRoute::would_violate_global_pd_constraint_range(
     const std::vector<Index>& new_jobs) const {
 
   // Defensive bounds checks: we expect [first_rank, last_rank) to be replaced.
-  assert(first_rank <= route.size());
-  assert(last_rank <= route.size());
-  assert(first_rank <= last_rank);
+  // assert(first_rank <= route.size());
+  // assert(last_rank <= route.size());
+  // assert(first_rank <= last_rank);
+
+    // Fail-closed bounds handling:
+    // This function expects [first_rank, last_rank) to refer to the CURRENT route
+    // (before modification). If callers provide invalid bounds, we must reject the
+    // move/insertion by returning "violation = true".
+    const Index n = static_cast<Index>(route.size());
+    if (first_rank > n || last_rank > n || first_rank > last_rank) {
+      return true;
+    }
+
 
   bool delivery_seen = false;
 
