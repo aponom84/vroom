@@ -8,6 +8,7 @@ All rights reserved (see LICENSE).
 */
 
 #include <algorithm>
+#include <iostream>
 
 #include "structures/vroom/tw_route.h"
 #ifndef NDEBUG
@@ -1485,6 +1486,66 @@ void TWRoute::replace(const Input& input,
     assert(false && "Route violates global pickup-before-delivery constraint in TWRoute::replace");
   }
 #endif
+  // ---- PD_DEBUG_DUMP_AT_REPLACE_ASSERT ----
+  if (!this->has_all_pickups_before_deliveries(input)) {
+    const auto has_pos = [](const Amount& a) -> bool {
+      for (std::size_t k = 0; k < a.size(); ++k) {
+        if (a[k] > 0) return true;
+      }
+      return false;
+    };
+
+    const auto type_str = [](JOB_TYPE t) -> const char* {
+      switch (t) {
+      case JOB_TYPE::SINGLE:
+        return "SINGLE";
+      case JOB_TYPE::PICKUP:
+        return "PICKUP";
+      case JOB_TYPE::DELIVERY:
+        return "DELIVERY";
+      default:
+        return "OTHER";
+      }
+    };
+
+    const auto is_pickup = [&](Index job_rank) -> bool {
+      const auto& j = input.jobs[job_rank];
+      return j.type == JOB_TYPE::PICKUP ||
+             (j.type == JOB_TYPE::SINGLE && has_pos(j.pickup));
+    };
+
+    const auto is_delivery = [&](Index job_rank) -> bool {
+      const auto& j = input.jobs[job_rank];
+      return j.type == JOB_TYPE::DELIVERY ||
+             (j.type == JOB_TYPE::SINGLE && has_pos(j.delivery));
+    };
+
+    const auto dump_one = [&](Index job_rank) {
+      const auto& j = input.jobs[job_rank];
+      std::cerr << job_rank << "(type=" << type_str(j.type)
+                << ",P=" << (is_pickup(job_rank) ? "Y" : "N")
+                << ",D=" << (is_delivery(job_rank) ? "Y" : "N") << ")";
+    };
+
+    std::cerr << "\nPD VIOLATION (pre-assert) in TWRoute::replace:"
+              << " first_rank=" << first_rank
+              << " last_rank=" << last_rank
+              << " route_size=" << route.size()
+              << "\nInserted jobs detailed: ";
+
+    for (auto it = first_job; it != last_job; ++it) {
+      dump_one(*it);
+      std::cerr << " ";
+    }
+
+    std::cerr << "\nRoute now detailed: ";
+    for (auto j : route) {
+      dump_one(j);
+      std::cerr << " ";
+    }
+    std::cerr << "\n";
+  }
+  // ---- end PD_DEBUG_DUMP_AT_REPLACE_ASSERT ----
   assert(this->has_all_pickups_before_deliveries(input));
 }
 
