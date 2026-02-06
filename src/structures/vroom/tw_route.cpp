@@ -10,7 +10,26 @@ All rights reserved (see LICENSE).
 #include <algorithm>
 
 #include "structures/vroom/tw_route.h"
+#ifndef NDEBUG
+#include <execinfo.h>
+#include <cstdio>
+#include <cstdlib>
+#endif
 #include "utils/helpers.h"
+
+#ifndef NDEBUG
+static void dump_stacktrace_stderr() {
+  void* addrs[128];
+  int n = backtrace(addrs, 128);
+  char** syms = backtrace_symbols(addrs, n);
+  std::fprintf(stderr, "---- stacktrace ----\n");
+  for (int i = 0; i < n; ++i) {
+    std::fprintf(stderr, "%s\n", syms[i]);
+  }
+  std::fprintf(stderr, "--------------------\n");
+  std::free(syms);
+}
+#endif
 
 namespace vroom {
 
@@ -1442,6 +1461,31 @@ void TWRoute::replace(const Input& input,
   if (last_break > 0) {
     bwd_update_breaks_load_margin_from(input, current_job_rank);
   }
+
+#ifndef NDEBUG
+  if (!this->has_all_pickups_before_deliveries(input)) {
+    std::fprintf(stderr,
+                 "PD VIOLATION in TWRoute::replace: v_rank=%u first_rank=%u last_rank=%u route_size=%zu\n",
+                 (unsigned)v_rank,
+                 (unsigned)first_rank,
+                 (unsigned)last_rank,
+                 route.size());
+
+    std::fprintf(stderr, "Inserted jobs:");
+    for (auto it = first_job; it != last_job; ++it) {
+      std::fprintf(stderr, " %u", (unsigned)*it);
+    }
+    std::fprintf(stderr, "\nRoute now:");
+    for (auto x : route) {
+      std::fprintf(stderr, " %u", (unsigned)x);
+    }
+    std::fprintf(stderr, "\n");
+
+    dump_stacktrace_stderr();
+    assert(false && "Route violates global pickup-before-delivery constraint in TWRoute::replace");
+  }
+#endif
+  assert(this->has_all_pickups_before_deliveries(input));
 }
 
 template bool

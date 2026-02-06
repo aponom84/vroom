@@ -117,6 +117,10 @@ void OrOpt::apply() {
       .replace(_input, edge_delivery, s_start, s_start + 2, t_rank, t_rank);
     _tw_s_route.remove(_input, s_rank, 2);
   }
+
+  // Verify that the global pickup-before-delivery constraint is satisfied after applying the change
+  assert(_tw_s_route.has_all_pickups_before_deliveries(_input));
+  assert(_tw_t_route.has_all_pickups_before_deliveries(_input));
 }
 
 } // namespace vroom::vrptw

@@ -85,6 +85,10 @@ void TwoOpt::apply() {
                       t_job_ranks.end(),
                       s_rank + 1,
                       s_route.size());
+
+  // Verify that the global pickup-before-delivery constraint is satisfied after applying the change
+  assert(_tw_s_route.has_all_pickups_before_deliveries(_input));
+  assert(_tw_t_route.has_all_pickups_before_deliveries(_input));
 }
 
 } // namespace vroom::vrptw

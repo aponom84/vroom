@@ -53,6 +53,9 @@ void IntraRelocate::apply() {
                       _moved_jobs.end(),
                       _first_rank,
                       _last_rank);
+
+  // Verify that the global pickup-before-delivery constraint is satisfied after applying the change
+  assert(_tw_s_route.has_all_pickups_before_deliveries(_input));
 }
 
 std::vector<Index> IntraRelocate::addition_candidates() const {

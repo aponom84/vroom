@@ -60,6 +60,10 @@ void Relocate::apply() {
 
   _tw_s_route.remove(_input, s_rank, 1);
   _tw_t_route.add(_input, relocate_job_rank, t_rank);
+
+  // Verify that the global pickup-before-delivery constraint is satisfied after applying the change
+  assert(_tw_s_route.has_all_pickups_before_deliveries(_input));
+  assert(_tw_t_route.has_all_pickups_before_deliveries(_input));
 }
 
 } // namespace vroom::vrptw

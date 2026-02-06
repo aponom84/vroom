@@ -2043,6 +2043,16 @@ void LocalSearch<Route,
       try_job_additions(_all_routes, refill_regret);
     }
   }
+
+  // Runtime check: verify that all routes satisfy the global pickup-before-delivery constraint
+  #ifndef NDEBUG
+  for (std::size_t v = 0; v < _sol.size(); ++v) {
+    if (!_sol[v].has_all_pickups_before_deliveries(_input)) {
+      // This assertion will help identify which operator is creating violations
+      assert(false && "Route violates global pickup-before-delivery constraint after local search!");
+    }
+  }
+  #endif
 }
 
 template <class Route,

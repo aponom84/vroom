@@ -82,7 +82,26 @@ bool PDShift::is_valid() {
   }
   assert(gain_computed);
 
+  // Fail closed: add missing rank-range validity checks
+  if (_best_t_p_rank > _best_t_d_rank) return false;
+  if (static_cast<std::size_t>(_best_t_p_rank) > _tw_t_route.route.size()) return false;
+  if (static_cast<std::size_t>(_best_t_d_rank) > _tw_t_route.route.size()) return false;
+  if (_s_p_rank > _s_d_rank) return false;
+  if (static_cast<std::size_t>(_s_p_rank) >= _tw_s_route.route.size()) return false;
+  if (static_cast<std::size_t>(_s_d_rank) >= _tw_s_route.route.size()) return false;
+
   // Check the global pickup-before-delivery constraint for both routes after the move efficiently
+  // Fail closed: if bounds are invalid, return false immediately
+  if (static_cast<std::size_t>(_s_p_rank + 2) > _tw_s_route.route.size() && _s_d_rank == _s_p_rank + 1) {
+    return false;  // Invalid bounds for simple case
+  }
+  if (static_cast<std::size_t>(_s_d_rank + 1) > _tw_s_route.route.size() && _s_d_rank != _s_p_rank + 1) {
+    return false;  // Invalid bounds for complex case
+  }
+  if (static_cast<std::size_t>(_best_t_d_rank) > _tw_t_route.route.size()) {
+    return false;  // Invalid bounds for target route
+  }
+
   // Check source route after removal - depends on whether pickup and delivery are adjacent
   if (_s_d_rank == _s_p_rank + 1) {
     // Simple case: pickup and delivery are adjacent, remove range [_s_p_rank, _s_p_rank + 2)
@@ -93,8 +112,8 @@ bool PDShift::is_valid() {
     // Complex case: pickup and delivery have jobs in between
     // Remove range [_s_p_rank, _s_d_rank + 1) and replace with jobs in between
     std::vector<Index> source_without_pd;
-    for (Index i = _s_p_rank + 1; i < _s_d_rank; ++i) {
-      source_without_pd.push_back(s_route[i]);
+    for (Index i = _s_p_rank + 1; i < _s_d_rank && i < _tw_s_route.route.size(); ++i) {
+      source_without_pd.push_back(_tw_s_route.route[i]);
     }
     if (_tw_s_route.would_violate_global_pd_constraint_range(_input, _s_p_rank, _s_d_rank + 1, source_without_pd)) {
       return false;
@@ -103,11 +122,11 @@ bool PDShift::is_valid() {
 
   // Check target route after addition
   std::vector<Index> target_jobs_to_add;
-  target_jobs_to_add.push_back(s_route[_s_p_rank]);
-  for (Index i = _best_t_p_rank; i < _best_t_d_rank; ++i) {
-    target_jobs_to_add.push_back(t_route[i]);
+  target_jobs_to_add.push_back(_tw_s_route.route[_s_p_rank]);
+  for (Index i = _best_t_p_rank; i < _best_t_d_rank && i < _tw_t_route.route.size(); ++i) {
+    target_jobs_to_add.push_back(_tw_t_route.route[i]);
   }
-  target_jobs_to_add.push_back(s_route[_s_d_rank]);
+  target_jobs_to_add.push_back(_tw_s_route.route[_s_d_rank]);
 
   if (_tw_t_route.would_violate_global_pd_constraint_range(_input, _best_t_p_rank, _best_t_d_rank, target_jobs_to_add)) {
     return false;
@@ -146,6 +165,10 @@ void PDShift::apply() {
                         _s_p_rank,
                         _s_d_rank + 1);
   }
+
+  // Verify that the global pickup-before-delivery constraint is satisfied after applying the change
+  assert(_tw_s_route.has_all_pickups_before_deliveries(_input));
+  assert(_tw_t_route.has_all_pickups_before_deliveries(_input));
 }
 
 } // namespace vroom::vrptw

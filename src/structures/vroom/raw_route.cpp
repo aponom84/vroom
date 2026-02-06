@@ -14,13 +14,26 @@ All rights reserved (see LICENSE).
 
 namespace vroom {
 
+// Helper function to check if any element in Amount is positive
+static bool has_positive_value(const Amount& amount) {
+  for (std::size_t i = 0; i < amount.size(); ++i) {
+    if (amount[i] > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Helper function to classify job as pickup/delivery consistently across all methods
 static inline std::pair<bool, bool> pd_classify(const Input& input, Index job_idx) {
   const auto& job = input.jobs[job_idx];
 
-  // Policy A (recommended): only shipment jobs participate in this constraint.
-  const bool is_pickup = (job.type == JOB_TYPE::PICKUP);
-  const bool is_delivery = (job.type == JOB_TYPE::DELIVERY);
+  // Policy: pickup jobs are PICKUP type or SINGLE with positive pickup amounts
+  // delivery jobs are DELIVERY type or SINGLE with positive delivery amounts
+  const bool is_pickup = (job.type == JOB_TYPE::PICKUP) ||
+                         (job.type == JOB_TYPE::SINGLE && has_positive_value(job.pickup));
+  const bool is_delivery = (job.type == JOB_TYPE::DELIVERY) ||
+                           (job.type == JOB_TYPE::SINGLE && has_positive_value(job.delivery));
 
   return {is_pickup, is_delivery};
 }
